@@ -1,0 +1,13 @@
+# Dependencies
+lib/
+node_modules/
+
+# Build artifacts
+out/
+cache/
+broadcast/
+
+# Environment variables
+.env
+.env.local
+
