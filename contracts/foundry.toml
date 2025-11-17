@@ -6,7 +6,10 @@ solc_version = "0.8.20"
 optimizer = true
 optimizer_runs = 200
 
-remappings = ["@openzeppelin/=lib/openzeppelin-contracts/"]
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/"
+]
 
 [profile.ci]
 fuzz = { runs = 10000 }
