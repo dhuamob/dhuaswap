@@ -11,7 +11,7 @@ contract Factory {
     address public feeTo;
     address public feeToSetter;
 
-    mapping(address => mapping(address => address)) public getPair;
+    mapping(address => mapping(address => address)) private pairs;
     address[] public allPairs;
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint256 pairIndex);
@@ -35,14 +35,14 @@ contract Factory {
 
         if (token0 == address(0)) revert ZeroAddress();
 
-        if (getPair[token0][token1] != address(0)) {
-            revert PairAlreadyExists(getPair[token0][token1]);
+        if (pairs[token0][token1] != address(0)) {
+            revert PairAlreadyExists(pairs[token0][token1]);
         }
 
         pair = address(new Pair(token0, token1));
 
-        getPair[token0][token1] = pair;
-        getPair[token1][token0] = pair;
+        pairs[token0][token1] = pair;
+        pairs[token1][token0] = pair;
         allPairs.push(pair);
 
         emit PairCreated(token0, token1, pair, allPairs.length - 1);
@@ -50,6 +50,10 @@ contract Factory {
 
     function allPairsLength() external view returns (uint256) {
         return allPairs.length;
+    }
+
+    function getPair(address tokenA, address tokenB) external view returns (address) {
+        return pairs[tokenA][tokenB];
     }
 }
 
