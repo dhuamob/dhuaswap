@@ -225,7 +225,8 @@ contract Pair {
     }
 
     function _mint(address to, uint256 value) internal {
-        if (to == address(0)) revert ZeroAddress();
+        // Allow minimum liquidity lock to address(0) only for MINIMUM_LIQUIDITY
+        if (to == address(0) && value != MINIMUM_LIQUIDITY) revert ZeroAddress();
         totalSupply += value;
         balanceOf[to] += value;
         emit Transfer(address(0), to, value);
