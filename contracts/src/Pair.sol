@@ -135,7 +135,43 @@ contract Pair {
         emit Mint(msg.sender, amount0, amount1);
     }
 
-    // Burn / Swap / Sync functionality will be enabled in later steps
+    /**
+     * @notice Burns LP tokens and sends underlying assets to `to`.
+     * @dev Caller must transfer LP tokens to this contract before calling.
+     */
+    function burn(address to) external lock returns (uint256 amount0, uint256 amount1) {
+        if (to == address(0)) revert ZeroAddress();
+
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves();
+        address _token0 = token0;
+        address _token1 = token1;
+
+        uint256 balance0 = IERC20(_token0).balanceOf(address(this));
+        uint256 balance1 = IERC20(_token1).balanceOf(address(this));
+        uint256 liquidity = balanceOf[address(this)];
+
+        uint256 _totalSupply = totalSupply;
+        amount0 = (liquidity * balance0) / _totalSupply;
+        amount1 = (liquidity * balance1) / _totalSupply;
+
+        if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidityMinted();
+
+        _burn(address(this), liquidity);
+        _safeTransfer(_token0, to, amount0);
+        _safeTransfer(_token1, to, amount1);
+
+        balance0 = IERC20(_token0).balanceOf(address(this));
+        balance1 = IERC20(_token1).balanceOf(address(this));
+
+        _update(
+            _toUint112(balance0),
+            _toUint112(balance1),
+            uint32(block.timestamp % 2 ** 32)
+        );
+        kLast = uint256(reserve0) * reserve1;
+
+        emit Burn(msg.sender, amount0, amount1, to);
+    }
 
     // --- Internal helpers ---------------------------------------------------------------------
 
@@ -155,6 +191,22 @@ contract Pair {
         totalSupply += value;
         balanceOf[to] += value;
         emit Transfer(address(0), to, value);
+    }
+
+    function _burn(address from, uint256 value) internal {
+        if (from == address(0)) revert ZeroAddress();
+        uint256 fromBalance = balanceOf[from];
+        if (fromBalance < value) revert InsufficientBalance();
+        unchecked {
+            balanceOf[from] = fromBalance - value;
+        }
+        totalSupply -= value;
+        emit Transfer(from, address(0), value);
+    }
+
+    function _safeTransfer(address token, address to, uint256 value) private {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "PAIR: TRANSFER_FAILED");
     }
 
     function _update(uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) internal {
