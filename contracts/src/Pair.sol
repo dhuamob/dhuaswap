@@ -173,6 +173,42 @@ contract Pair {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
+    /**
+     * @notice Core swap logic (no fee enforced yet).
+     * @param amount0Out Amount of token0 to send to `to`
+     * @param amount1Out Amount of token1 to send to `to`
+     * @param to Recipient address
+     */
+    function swap(uint256 amount0Out, uint256 amount1Out, address to) external lock {
+        require(amount0Out > 0 || amount1Out > 0, "PAIR: INSUFFICIENT_OUTPUT");
+        require(amount0Out == 0 || amount1Out == 0, "PAIR: ONE_SIDE_ONLY"); // only one can be nonzero
+        require(to != address(0), "PAIR: INVALID_TO");
+
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves();
+        require(amount0Out < _reserve0 && amount1Out < _reserve1, "PAIR: INSUFFICIENT_LIQUIDITY");
+
+        if (amount0Out > 0) _safeTransfer(token0, to, amount0Out);
+        if (amount1Out > 0) _safeTransfer(token1, to, amount1Out);
+
+        uint256 balance0 = IERC20(token0).balanceOf(address(this));
+        uint256 balance1 = IERC20(token1).balanceOf(address(this));
+
+        uint256 amount0In = balance0 > (_reserve0 - amount0Out) ? balance0 - (_reserve0 - amount0Out) : 0;
+        uint256 amount1In = balance1 > (_reserve1 - amount1Out) ? balance1 - (_reserve1 - amount1Out) : 0;
+        require(amount0In > 0 || amount1In > 0, "PAIR: INSUFFICIENT_INPUT");
+
+        // Constant product check (no fee): must be >=
+        uint256 balance0Adjusted = balance0;
+        uint256 balance1Adjusted = balance1;
+        require(
+            balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * uint256(_reserve1),
+            "PAIR: K"
+        );
+
+        _update(_toUint112(balance0), _toUint112(balance1), uint32(block.timestamp % 2 ** 32));
+        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+    }
+
     // --- Internal helpers ---------------------------------------------------------------------
 
     function _transfer(address from, address to, uint256 value) internal {
