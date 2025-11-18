@@ -14,6 +14,8 @@ contract Pair {
     uint8 public constant decimals = 18;
 
     uint256 private constant MINIMUM_LIQUIDITY = 1_000;
+    uint256 private constant FEE_NUMERATOR = 997;
+    uint256 private constant FEE_DENOMINATOR = 1000;
 
     address public immutable factory;
     address public immutable token0;
@@ -174,7 +176,7 @@ contract Pair {
     }
 
     /**
-     * @notice Core swap logic (no fee enforced yet).
+     * @notice Core swap logic (fee configurable via constants).
      * @param amount0Out Amount of token0 to send to `to`
      * @param amount1Out Amount of token1 to send to `to`
      * @param to Recipient address
@@ -197,11 +199,11 @@ contract Pair {
         uint256 amount1In = balance1 > (_reserve1 - amount1Out) ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, "PAIR: INSUFFICIENT_INPUT");
 
-        // Constant product check (no fee): must be >=
-        uint256 balance0Adjusted = balance0;
-        uint256 balance1Adjusted = balance1;
+        // Adjusted constant product check: charge fee on input
+        uint256 balance0Adjusted = (balance0 * FEE_DENOMINATOR) - (amount0In * (FEE_DENOMINATOR - FEE_NUMERATOR));
+        uint256 balance1Adjusted = (balance1 * FEE_DENOMINATOR) - (amount1In * (FEE_DENOMINATOR - FEE_NUMERATOR));
         require(
-            balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * uint256(_reserve1),
+            balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * uint256(_reserve1) * (FEE_DENOMINATOR**2),
             "PAIR: K"
         );
 
