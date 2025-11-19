@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./Factory.sol";
-import "./Pair.sol"; // Added for Pair contract
-import "./IERC20.sol"; // Added for IERC20 contract
+import './Factory.sol';
+import './Pair.sol'; // Added for Pair contract
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 /**
  * @title Router
