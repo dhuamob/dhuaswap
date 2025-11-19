@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../src/Pair.sol";
+import "../src/Factory.sol";
+import "../src/Router.sol";
 import "../src/ERC20.sol";
 
 contract MockToken is TestToken {
@@ -141,5 +143,46 @@ contract PairEdgeTest is PairBaseTest {
         vm.expectRevert();
         pair.swap(1 ether, 1 ether, bob);
         vm.stopPrank();
+    }
+}
+
+contract RouterAddLiquidityTest is Test {
+    MockToken token0;
+    MockToken token1;
+    Factory factory;
+    Router router;
+    address alice = address(0xA11ce);
+
+    function setUp() public {
+        token0 = new MockToken("T0", "T0", 0);
+        token1 = new MockToken("T1", "T1", 0);
+        factory = new Factory(address(this));
+        router = new Router(address(factory));
+        // Mint tokens to alice
+        token0.mintTo(alice, 10_000 ether);
+        token1.mintTo(alice, 10_000 ether);
+        // Alice approves Router
+        vm.startPrank(alice);
+        token0.approve(address(router), type(uint256).max);
+        token1.approve(address(router), type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function testRouterAddLiquidityCreatesPairAndMintsLP() public {
+        vm.startPrank(alice);
+        (uint amountA, uint amountB, uint liquidity) = router.addLiquidity(
+            address(token0),
+            address(token1),
+            1000 ether,
+            2000 ether,
+            0,0,
+            alice);
+        vm.stopPrank();
+        address pairAddr = factory.getPair(address(token0), address(token1));
+        assertTrue(pairAddr != address(0), "Pair should be created");
+        assertEq(token0.balanceOf(pairAddr), 1000 ether);
+        assertEq(token1.balanceOf(pairAddr), 2000 ether);
+        assertGt(Pair(pairAddr).balanceOf(alice), 0);
+        // Events can be checked with expectEmit if needed
     }
 }
