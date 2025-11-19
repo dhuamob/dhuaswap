@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "./Factory.sol";
+import "./Pair.sol"; // Added for Pair contract
+import "./IERC20.sol"; // Added for IERC20 contract
 
 /**
  * @title Router
@@ -26,8 +28,22 @@ contract Router {
         uint amountBMin,
         address to
     ) external returns (uint amountA, uint amountB, uint liquidity) {
-        // TODO: implement next step
-        revert("Router: not implemented");
+        // Minimal logic: use desired amounts as-is, find or create pair, transfer tokens, and mint
+        require(to != address(0), "Router: INVALID_TO");
+        require(amountADesired > 0 && amountBDesired > 0, "Router: INSUFFICIENT_AMOUNTS");
+        address pairAddr = Factory(factory).getPair(tokenA, tokenB);
+        if (pairAddr == address(0)) {
+            pairAddr = Factory(factory).createPair(tokenA, tokenB);
+        }
+        // Transfer desired amounts to pair
+        IERC20(tokenA).transferFrom(msg.sender, pairAddr, amountADesired);
+        IERC20(tokenB).transferFrom(msg.sender, pairAddr, amountBDesired);
+        // Mint liquidity
+        liquidity = Pair(pairAddr).mint(to);
+        // For minimal version, accept that all desired amounts are used
+        amountA = amountADesired;
+        amountB = amountBDesired;
+        emit AddLiquidity(msg.sender, tokenA, tokenB, amountA, amountB, pairAddr);
     }
 
     function removeLiquidity(
