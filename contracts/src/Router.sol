@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import './Factory.sol';
-import './Pair.sol'; // Added for Pair contract
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./Factory.sol";
+import "./Pair.sol";
 
 /**
  * @title Router
  * @dev Minimal router contract — facilitates liquidity management and token swaps
  */
 contract Router {
+    uint256 private constant FEE_NUMERATOR = 997;
+    uint256 private constant FEE_DENOMINATOR = 1000;
+
     address public immutable factory;
     
     event AddLiquidity(address indexed user, address indexed tokenA, address indexed tokenB, uint amountA, uint amountB, address pair);
@@ -31,10 +34,7 @@ contract Router {
         // Minimal logic: use desired amounts as-is, find or create pair, transfer tokens, and mint
         require(to != address(0), "Router: INVALID_TO");
         require(amountADesired > 0 && amountBDesired > 0, "Router: INSUFFICIENT_AMOUNTS");
-        address pairAddr = Factory(factory).getPair(tokenA, tokenB);
-        if (pairAddr == address(0)) {
-            pairAddr = Factory(factory).createPair(tokenA, tokenB);
-        }
+        address pairAddr = _getOrCreatePair(tokenA, tokenB);
         // Transfer desired amounts to pair
         IERC20(tokenA).transferFrom(msg.sender, pairAddr, amountADesired);
         IERC20(tokenB).transferFrom(msg.sender, pairAddr, amountBDesired);
@@ -54,7 +54,18 @@ contract Router {
         uint amountBMin,
         address to
     ) external returns (uint amountA, uint amountB) {
-        revert("Router: not implemented");
+        require(to != address(0), "Router: INVALID_TO");
+        address pairAddr = Factory(factory).getPair(tokenA, tokenB);
+        require(pairAddr != address(0), "Router: PAIR_NOT_FOUND");
+
+        IERC20(pairAddr).transferFrom(msg.sender, pairAddr, liquidity);
+        (uint amount0, uint amount1) = Pair(pairAddr).burn(to);
+
+        address token0 = Pair(pairAddr).token0();
+        (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
+
+        require(amountA >= amountAMin && amountB >= amountBMin, "Router: INSUFFICIENT_OUTPUT");
+        emit RemoveLiquidity(msg.sender, tokenA, tokenB, amountA, amountB, pairAddr);
     }
 
     function swapExactTokensForTokens(
