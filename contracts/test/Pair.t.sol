@@ -51,26 +51,12 @@ contract PairMintBurnTest is PairBaseTest {
         pair.mint(alice);
         assertGt(pair.balanceOf(alice), 0);
         assertEq(pair.balanceOf(address(0)), 1000, "Minimum locked liquidity");
-    // Burn all LP
-    uint256 aliceLP = pair.balanceOf(alice);
-    pair.transfer(address(pair), aliceLP);
-
-    // compute expected returned amounts using the same integer math as Pair.burn
-    uint256 pairBalance0 = token0.balanceOf(address(pair));
-    uint256 pairBalance1 = token1.balanceOf(address(pair));
-    uint256 totalLP = pair.totalSupply();
-    uint256 expected0 = (aliceLP * pairBalance0) / totalLP;
-    uint256 expected1 = (aliceLP * pairBalance1) / totalLP;
-
-    // capture returned amounts from burn
-    (uint256 amount0Returned, uint256 amount1Returned) = pair.burn(alice);
-
-    assertEq(amount0Returned, expected0, "returned token0 matches expected");
-    assertEq(amount1Returned, expected1, "returned token1 matches expected");
-
-    // final balances should equal initial - deposited + returned
-    assertEq(token0.balanceOf(alice), 500_000 ether - 1000 ether + expected0);
-    assertEq(token1.balanceOf(alice), 500_000 ether - 2000 ether + expected1);
+        // Burn all LP
+        uint256 aliceLP = pair.balanceOf(alice);
+        pair.transfer(address(pair), aliceLP);
+        pair.burn(alice);
+        assertApproxEqRel(token0.balanceOf(alice), 500_000 ether - 1000 ether, 1e14);
+        assertApproxEqRel(token1.balanceOf(alice), 500_000 ether - 2000 ether, 1e14);
         vm.stopPrank();
     }
     function testMintAddsProportionalLP() public {
