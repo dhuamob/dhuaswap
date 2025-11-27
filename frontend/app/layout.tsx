@@ -1,5 +1,10 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import dynamic from 'next/dynamic'
+
+const WagmiProvider = dynamic(() => import('../components/WagmiProvider'), {
+  ssr: false,
+})
 
 export const metadata: Metadata = {
   title: 'DhuaSwap',
@@ -13,7 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <WagmiProvider>{children}</WagmiProvider>
+      </body>
     </html>
   )
 }
